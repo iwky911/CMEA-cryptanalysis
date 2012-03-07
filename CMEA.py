@@ -44,6 +44,7 @@ class CMEA:
         """
         self.key = [12, 65, 23 ,89 ,
                     56, 156, 210, 69]
+        self.blocksize=2
     
     def setkey(self, k):
         self.key = k
@@ -104,6 +105,18 @@ class CMEA:
             c.append( (Ppp[i] - self.Tbox(z[i] ^ i)) % 256)
         return c
         
+    def crypttext(self, s):
+        """
+        crypt a text after adding padding (spaces)
+        """
+        s = s+ " "* ( 0 if (len(s) % self.blocksize)==0 else self.blocksize - (len(s) %self.blocksize))
+        sortie = ""
+        for i in range(len(s)/self.blocksize):
+            P = [ord(c) for c in s[i*self.blocksize: (i+1)*self.blocksize]]
+            S = [chr(c) for c in self.crypt(P)]
+            sortie += "".join(S)
+        return sortie
+
     def printTab(self, t):
         """
         print the letters corresponding to the integer array t
