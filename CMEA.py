@@ -1,6 +1,7 @@
-#!/bin/env python
+#!/usr/bin/python
 #-*- coding:utf-8 -*-
 
+#the cave table is the 
 cavetable =[0xd9, 0x23, 0x5f, 0xe6, 0xca, 0x68, 0x97, 0xb0,
 		0x7b, 0xf2, 0x0c, 0x34, 0x11, 0xa5, 0x8d, 0x4e,
 		0x0a, 0x46, 0x77, 0x8d, 0x10, 0x9f, 0x5e, 0x62,
@@ -37,20 +38,80 @@ cavetable =[0xd9, 0x23, 0x5f, 0xe6, 0xca, 0x68, 0x97, 0xb0,
 
 class CMEA:
     
-    def setkey(k):
-        self.key = k
-
-    def Tbox(x):
-        return C((( C((( C((( C((x ^ self.key[0]) + self.key[1]) +x) ^ self.key[2]) +self.key[3]) +x ) ^ self.key[4]) + self.key[5]) +x )^self.key[6]) +self.key[7]) +x % 256
-        
-    def C(x):
-        return cavetable[x % cavetable.length]
+    def __init__(self):
+        """
+        adding a default key for the doctests
+        """
+        self.key = [12, 65, 23 ,89 ,
+                    56, 156, 210, 69]
     
-    def crypt(P):
-        Pp=[]
-        y=[0]
-        for i in range(len(P)):
-            Pp.append((P[i] + Tbox(i^y[i]) %256)
-            y.append( y[i] +  % 256)
-
+    def setkey(self, k):
+        self.key = k
         
+    def add(self, a,b):
+        """
+        an addition modulo 256
+        >>> c = CMEA()
+        >>> c.add(196,203)
+        143
+        """
+        return (a+b) % 256
+
+    def Tbox(self, x):
+        """
+        >>> c = CMEA()
+        >>> c.Tbox(96)
+        14
+        """
+        return self.add(self.C(self.add(self.add(
+                self.C(self.add(self.add(
+                    self.C(self.add(self.add(
+                        self.C(self.add((x ^ self.key[0]), self.key[1]))
+                        , x)^ self.key[2],self.key[3]))
+                        ,x)^ self.key[4], self.key[5]))
+                    ,x)^self.key[6],self.key[7]))
+                    ,x)
+        
+    def C(self, x):
+        """
+        get the x-eme element of cavetable
+        """
+        return cavetable[x]
+    
+    def crypt(self, P):
+        """
+        return the ciffer version of the message P
+        P is a list of integer coded on 8 bits
+        """
+        Pp=[]
+        y = []
+        y.append(0)
+        for i in range(len(P)):
+            Pp.append((P[i] + self.Tbox(i^y[i])) % 256)
+            y.append((y[i] + Pp[i]) % 256)
+
+        Ppp =[]
+        for i in range( len(P)/2):
+            Ppp.append(Pp[i] ^ (Pp[len(P)-i-1] | 1))
+        
+        for i in range(len(P)/2, len(P)):
+            Ppp.append(Pp[i])
+        
+        z=[0]
+        c=[]
+        for i in range(len(P)):
+            z.append(z[i]+Ppp[i] % 256)
+            c.append( (Ppp[i] - self.Tbox(z[i] ^ i)) % 256)
+        return c
+        
+    def printTab(self, t):
+        """
+        print the letters corresponding to the integer array t
+        """
+        for k in t:
+            print ord(k)
+
+if __name__=="__main__":
+    import doctest
+    doctest.testmod()
+
