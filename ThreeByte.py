@@ -2,6 +2,7 @@
 #-*- coding:utf-8 -*-
 
 from CMEA import *
+import random
 
 def getY1Z1(x, P, C):
     return (P[0] + x) % 256, (C[0] + x) % 256
@@ -71,4 +72,12 @@ def findT0(texts):
         if(checkT0Value):
             print x
     
-        
+def createPlaintexts(n, size=3):
+    r = random.Random()
+    l = []
+    c = CMEA()
+    c.blocksize = size
+    for i in range(n):
+        P=[r.randint(0,256) for k in range(size)]
+        l.append((P, c.crypt(P)))
+    return l
