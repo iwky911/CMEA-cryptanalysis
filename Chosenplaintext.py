@@ -8,6 +8,8 @@ class Decrypter:
     def __init__(self):
         print "init"
         self.knowntext=[]
+        self.constraints = []
+        self.known={}
     
     def setCrypter(self, crypt):
         self.c=crypt
@@ -55,79 +57,65 @@ class Decrypter:
         else:
             return self.t[i]
 
-    def findExactTboxOutput(self,i):
-        for i in range(t):
-            pass
-
-    def schema(self, d):
-        self.d = 0
-        
-    def aux1(self, P,Pp,C,i,y,d):
-        for k in self.Tbox(i^y[i],d):
-            dp = d.copy()
-            dp[i ^y[i]] = k
-            Pp.append((P[i] + k) % 256)
-            y.append((y[i] + Pp[i]) % 256)
-            i+=1
-            if(i==len(P)):
-                (res, dic) = self.secondstep(Pp,C, dp)
-            else:
-                (res,dic) = self.aux1(P,Pp,C,i,y,dp)
-            if res:
-                return (res, dic)
-            else:
-                Pp.pop()
-                y.pop()
-                i-=1
-        return (False, {})
-                
+    def getallconstraints(self, t0):
+        for i in range(1,256):
+            self.getconstraints(i, t0)
     
-    def firststep(self, P, C):
-        return self.aux1(P,[],C,0,[0],{})
+    def getconstraints(self, j, t0):
+        n = self.c.blocksize
+        P = [ (1- t0) % 256 for i in range(n)]
+        k = (((n-1)^j) - (n-2)) % 256
+        P[-1] = 0
+        P[-2] = (k-t0) %256
+        C = self.c.crypt(P)
+        
+        Pp=[1 for i in range(n-2)]
+        Pp[-1]=k
+        for i in range(len(Pp)/2):
+            Pp[i]=Pp[i]^(P[len(Pp)-1-i] | 1)
+        
+        tjm = (C[0]+t0) % 256
+        z=[0,tjm]
+        for i in range(1, n-1):
+            self.known[z[i] ^ i] = (Pp[i-1]-C[i]) % 256
+            print "affect: ", self.c.Tbox(z[i]^i), self.known[z[i]^i]
+            z.append((z[i]+ Pp[i-1])%256)
+        
+        self.constraints.append((C[-1], tjm, j, z[-1] ^ (n-1)))
     
-    def secondstep(self, Pp, C, d):
-        Ppp =[]
-        for i in range( len(P)/2):
-            Ppp.append(Pp[i] ^ (Pp[len(P)-i-1] | 1))
-        
-        for i in range(len(P)/2, len(P)):
-            Ppp.append(Pp[i])
-        return self.thirdstep(Ppp, C, d)
-        
-    def thirdstep(self, Ppp, C, d):
-        z=[0]
-        c=[]
-        return self.aux3(Ppp, C, z,0, c, d)
-        
-    def aux3(self,Ppp, C, z,i, c, d):
-        for k in self.Tbox(i^z[i],d):
-            dp = d.copy()
-            #print i, z
-            dp[i ^z[i]] = k
-            z.append((z[i]+Ppp[i]) % 256)
-            c.append((Ppp[i] - k) % 256)
-            i+=1
-            if(i==len(Ppp)):
-                #print c
-                if(False in [C[k] == c[k] for k in range(len(C))]):
-                 #   print "echec"
-                    (res,dic)=  (False, {})
+    def solveconstraints(self):
+        compteur = 0
+        for (c, tj, j, z) in self.constraints:
+            if j in self.known:
+                if not z in self.known:
+                    compteur+=1
+                self.known[z] = (self.known[j] - c) %256
+                print "affect:", self.known[z], self.c.Tbox(z)
+            else:
+                if z in self.known:
+                    if not j in self.known:
+                        compteur+=1
+                    self.known[j] = (c + self.known[z]) % 256
+                    print "affect: ",j, tj, self.known[j], self.c.Tbox(j)
                 else:
-                    (res, dic)=  (True, dp)
-            else:
-                (res,dic) = self.aux3(Ppp,C,z,i,c,dp)
-            if res:
-                return (res, dic)
-            else:
-                c.pop()
-                z.pop()
-                i-=1
-        return (False, {})
-
+                    posj = [tj, tj+1]
+                    posz = [(tj-c)%256 , (tj+1 -c )%256]
+                    posj = [k for k in posj if (k-j) %256 in cavetable]
+                    posz = [k for k in posz if (k-z) %256 in cavetable]
+                    #if len(posj)==1:
+                     #   self.known[j] = posj[0]
+                     #   print "affect:", self.known[j], self.c.Tbox(j)
+                    #if len(posz)==1:
+                      #  self.known[z] = posz[0]
+                      #  print "affect:", self.known[z], self.c.Tbox(z)
+        
+        return compteur
+                    
+    
 if __name__ == '__main__':
     d = Decrypter()
     d.setCrypter(CMEA())
-    d.c.blocksize = 3
+    d.c.blocksize = 4
     d.c.createRandomKey()
     possibilities= d.findTzero()
     
@@ -136,27 +124,14 @@ if __name__ == '__main__':
         if t != []:
             break
     print len([l for l in t if len(l)==2])
-    d.t=t
-    #d.knowntext.extend([(a,b) for (b,a) in d.knowntext])
-    r = random.Random()
-    for i in range(100000):
-        C = [r.randint(0,256) for i in range(d.c.blocksize)]
-        d.knowntext.append((C, d.c.crypt(C)))
-    proba = {}
-    for (C,P) in d.knowntext:
-        (res, dic) = d.firststep(P,C)
-        for entree in dic:
-            if not entree in proba:
-                proba[entree] = {}
-            if not dic[entree] in proba[entree]:
-                proba[entree][dic[entree]]=0
-            proba[entree][dic[entree]]+=1
     
-    for a in proba:
-        i = proba[a].keys()[0]
-        for k in proba[a]:
-            i=k if proba[a][k]>proba[a][i] else i
-        
-        if not d.c.Tbox(a)== i:
-            print False
-        
+    d.getallconstraints(t[0][0])
+    print len(d.known)
+    print [(d.c.Tbox(i),d.known[i]) for i in d.known]
+   # for i in range(10):
+    #    d.solveconstraints()
+    d.solveconstraints()
+    print len(d.known)
+    print [(d.c.Tbox(i),d.known[i]) for i in d.known]
+    #for (c,tj,j,z) in d.constraints:
+     #   print d.c.Tbox(j), d.c.Tbox(z), (d.c.Tbox(j)-d.c.Tbox(z)) % 256 , c, tj
