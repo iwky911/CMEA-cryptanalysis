@@ -7,39 +7,50 @@ import random
 def getY1Z1(x, P, C):
     return (P[0] + x) % 256, (C[0] + x) % 256
     
-def checkValue(T0, p, P, C):
+def checkValue(c, T0, p, P, C):
     y1, z1 = getY1Z1(T0, P, C)
     change = False
     for guess in range(256):
-        if(p[y1 ^ 1] == 1):
+        if(p[y1 ^ 1][guess] == 1):
+        #if(guess == c.Tbox(y1 ^ 1)):
             #T(y1 ^ 1) = guess
             Pp1 = (P[1] + guess) % 256
             #P'(1) == P'(n-2)
-            Ppp1 = (Pp1 ^ (Pp1 | 1)) % 256
+            Ppp1 = Pp1 % 256
             #Tz1 -> T(z1 ^ 1)
             Tz1 = (Ppp1 - C[1]) % 256
             y2 = (y1 + Pp1) % 256
             z2 = (z1 + Ppp1) % 256
             #P'2 avec ambiguité sur le LSB
-            Pp0 = (P[0] + x) % 256
+            Pp0 = (P[0] + T0) % 256
             Pp2 = (Pp0 ^ (C[0] + T0)) % 256
             #C[0] + T0 = Ppp0
             
             #T(y2 ^ 2) sauf LSB
-            Ty2 = (Pp2 - P[2]) % 256
-            Ppp2 = (Pp2 ^ (Pp0 | 1) % 256)
+            Ty20 = (Pp2 - P[2]) % 256
+            Ty21 = ((Pp2 ^ 1) - P[2]) % 256
+            Ppp2 = Pp2 % 256
             
             #T(z2 ^ 2) sauf LSB
-            Tz2 = (Pp2 - C[2]) % 256
+            Tz20 = (Ppp2 - C[2]) % 256
+            Tz21 = ((Ppp2 ^ 1) - C[2]) % 256
+            
+            """print "Pp1", Pp1
+            print "Ppp1", Ppp1
+            print "Pp0", Pp0
+            print "Pp2", Pp2
+            print "y1", y1
+            print "y2", y2
+            print "z1", z1
+            print "z2", z2
+            print "Ty20", Ty20
+            print "Ty21", Ty21"""
             
             if(p[z1 ^ 1][Tz1] == 0):
-                p[y1 ^ 1] = 0
+                p[y1 ^ 1][guess] = 0
                 change = True
-            if((p[y2 ^ 2][Ty2] == 0) and (p[y2 ^ 2][Ty2 ^ 1] == 0)):
-                p[y1 ^ 1] = 0
-                change = True
-            if((p[z2 ^ 2][Tz2] == 0) and (p[z2 ^ 2][Tz2 ^ 1] == 0)):
-                p[y1 ^ 1] = 0
+            if((p[y2 ^ 2][Ty20] == 0 or p[z2 ^ 2][Tz20] == 0) and (p[y2 ^ 2][Ty21] == 0 or p[z2 ^ 2][Tz21] == 0)):
+                p[y1 ^ 1][guess] = 0
                 change = True
                 
     return change
@@ -50,34 +61,42 @@ def buildP(x):
     p = [ [ 1 for i in range(256) ] for j in range(256) ]
     for i in range(256):
         for j in range(256):
-            if(not j -i in cavetable):
+            if(not ((j-i) % 256) in cavetable):
                 p[i][j] = 0
     return p
             
-def checkT0Value(x, texts):
+def checkT0Value(c, x, texts):
     p = buildP(x)
-    continuer = true
+    continuer = True
     while(continuer):
-        continuer = false
+        continuer = False
         for (P, C) in texts:
-            continuer = continuer or checkValue(x, p, P, C)
+            continuer = continuer or checkValue(c, x, p, P, C)
     for i in range(256):
+        print len([k for k in p[i] if k == 1])
         if(not 1 in p[i]):
-            return false
+            return False
     
-    return true
+    return True
     
-def findT0(texts):
-    for x in range(256):
-        if(checkT0Value):
-            print x
-    
-def createPlaintexts(n, size=3):
-    r = random.Random()
-    l = []
+def findT0():
     c = CMEA()
+    texts = createPlaintexts(50, c)
+    for x in range(256):
+        if(x in cavetable and checkT0Value(c, x, texts)):
+            print x
+        else:
+            print x, " not good"
+    #print checkT0Value(c, c.Tbox(0), texts)
+    
+def createPlaintexts(n, c, size=3):
+    r = random. Random()
+    l = []
+    c.createRandomKey()
+    print c.Tbox(0)
     c.blocksize = size
     for i in range(n):
         P=[r.randint(0,256) for k in range(size)]
+        #P = [45, 89, 23]
         l.append((P, c.crypt(P)))
     return l
