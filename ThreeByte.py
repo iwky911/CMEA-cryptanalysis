@@ -12,7 +12,7 @@ def checkValue(c, T0, p, P, C):
     y1, z1 = getY1Z1(T0, P, C)
     change = False
     for guess in range(256):
-        if(p[y1 ^ 1][guess] == 1):
+        if(p[y1 ^ 1][guess]):
         #if(guess == c.Tbox(y1 ^ 1)):
             #T(y1 ^ 1) = guess
             Pp1 = (P[1] + guess) % 256
@@ -47,11 +47,11 @@ def checkValue(c, T0, p, P, C):
             print "Ty20", Ty20
             print "Ty21", Ty21"""
             
-            if(p[z1 ^ 1][Tz1] == 0):
-                p[y1 ^ 1][guess] = 0
+            if(not p[z1 ^ 1][Tz1]):
+                p[y1 ^ 1][guess] = False
                 change = True
-            if((p[y2 ^ 2][Ty20] == 0 or p[z2 ^ 2][Tz20] == 0) and (p[y2 ^ 2][Ty21] == 0 or p[z2 ^ 2][Tz21] == 0)):
-                p[y1 ^ 1][guess] = 0
+            if((not p[y2 ^ 2][Ty20] or not p[z2 ^ 2][Tz20]) and (not p[y2 ^ 2][Ty21] or not p[z2 ^ 2][Tz21])):
+                p[y1 ^ 1][guess] = False
                 change = True
                 
     return change
@@ -59,11 +59,11 @@ def checkValue(c, T0, p, P, C):
     
  
 def buildP(x):
-    p = [ [ 1 for i in range(256) ] for j in range(256) ]
+    p = [ [ True for i in range(256) ] for j in range(256) ]
     for i in range(256):
         for j in range(256):
             if(not ((j-i) % 256) in cavetable):
-                p[i][j] = 0
+                p[i][j] = False
     return p
             
 def checkT0Value(c, x, texts):
@@ -75,12 +75,11 @@ def checkT0Value(c, x, texts):
         for (P, C) in texts:
           #  print [ len([k for k in t if k!=0]) for t in p]
             continuer = continuer or checkValue(c, x, p, P, C)
-        for (C,P) in texts:
+        for (C, P) in texts:
             continuer = continuer or checkValue(c, x, p, P, C)
-    for i in range(256):
-       # print len([k for k in p[i] if k == 1])
-        if(not 1 in p[i]):
-            return False
+        for i in range(256):
+            if(not (True in p[i])):
+                return False
     
     return True
     
@@ -97,11 +96,11 @@ def findT0():
 def findT0parallel():
     c= CMEA()
     texts = createPlaintexts(80, c)
-    n = 4
+    n = 8
     threadlist = []
     for i in range(n):
-        t = range(i*n/4, (i+1)*n/4)
-        threadlist.append(Thread(t,c,texts))
+        t = range(i*256/n, (i+1)*256/n)
+        threadlist.append(Parallel(t,c,texts))
     
     for t in threadlist:
         t.start()
@@ -109,7 +108,7 @@ def findT0parallel():
     sortie = []
     for t in threadlist:
         t.join()
-        sortie.extends(t.l)
+        sortie.extend(t.l)
     
 def createPlaintexts(n, c, size=3):
     r = random. Random()
@@ -125,15 +124,19 @@ def createPlaintexts(n, c, size=3):
 
 
 class Parallel(Thread):
-    def __init__(self, t, c, texts,group=None, target=None, name=None, args=(), kwargs={}):
+    def __init__(self, t, c, texts):
+        Thread.__init__(self)
         self.c=c
         self.t=t
         self.texts=texts
         self.l=[]
     
     def run(self):
-        for x in t:
-            if(x in cavetable and checkT0Value(self.cc, x, self.texts)):
-                l.append(x)
+        print "demarre"
+        for x in self.t:
+            if(x in cavetable and checkT0Value(self.c, x, self.texts)):
+                self.l.append(x)
                 print x, " good"
+            else:
+                print x, "not good"
     
