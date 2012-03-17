@@ -18,7 +18,7 @@ class CVInverse:
 
 class Cryptanalysis3B:
     def __init__(self):
-        nbplaintext = 80
+        nbplaintext = 90
         self.p0 = [ [ True for i in range(256) ] for j in range(256) ]
         for i in range(256):
             for j in range(256):
@@ -113,7 +113,7 @@ class Cryptanalysis3B:
         
     def findT0(self):
         for x in range(256):
-            if(x in cavetable and self.checkT0Value(c, x, texts)):
+            if(x in cavetable and self.checkT0Value(x)):
                 print x, "good!"
                 self.myt0=x
             else:
@@ -133,7 +133,7 @@ class Cryptanalysis3B:
         for t in threadlist:
             t.join()
             sortie.extend(t.l)
-        self.myt0=l[0]
+        self.myt0=sortie[0]
         
     def createPlaintexts(self, n, c, size=3):
         r = random. Random()
@@ -247,16 +247,11 @@ class Cryptanalysis3B:
         self.temp.setkey(key)
         good=True
         for (P,C) in self.texts:
-            if not self.leq(P, self.temp.crypt(C)) or not self.leq(C, self.temp.crypt(P)):
+            if not P==self.temp.crypt(C) or not C == self.temp.crypt(P)):
                 good = False
-                if self.leq(key, self.c.key):
-                    print P, self.temp.crypt(C), C ,self.temp.crypt(P), self.leq(P, self.temp.crypt(C)), self.leq(C, self.temp.crypt(P))
                 break
         return good
                     
-    
-    def leq(self,a,b):
-        return a[0]==b[0] and a[1]==b[1] and a[2]==b[2]
 
 class Parallel(Thread):
     def __init__(self, t, c, texts, d):
@@ -270,7 +265,7 @@ class Parallel(Thread):
     def run(self):
         print "demarre"
         for x in self.t:
-            if(x in cavetable and self.decrypt.checkT0Value(self.c, x, self.texts)):
+            if(x in cavetable and self.decrypt.checkT0Value(x)):
                 self.l.append(x)
                 print x, " good"
             else:

@@ -43,6 +43,7 @@ class CMEA:
         adding a default key for the doctests
         """
         self.key = [1,2,3,4,5,8,89,15]
+	self.createRandomKey()
         self.blocksize=3
     
     def createRandomKey(self):
