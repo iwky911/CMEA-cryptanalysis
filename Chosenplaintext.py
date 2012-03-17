@@ -4,7 +4,9 @@
 from CMEA import *
 
 class Decrypter:
-    
+    """
+    a class that encapsulate all decryption methods
+    """
     def __init__(self):
         print "init"
         self.knowntext=[]
@@ -15,6 +17,9 @@ class Decrypter:
         self.c=crypt
     
     def findTzero(self):
+        """
+        find all possible t0 values
+        """
         s = set()
         for c in cavetable:
             s.add(c)
@@ -28,6 +33,10 @@ class Decrypter:
         return possibility
 
     def findPossibleOthers(self, t0):
+        """
+        return all possibles output for Tbox compatible with the cave table
+        if, for one i, all possible output for Tbox(i) are not compatible with the cave table, we don't have the real t0, return []
+        """
         T = [[] for i in range(256)]
         r = random.Random()
         T[0].append(t0)
@@ -50,18 +59,18 @@ class Decrypter:
                 if ((guess-j)%256+1) in cavetable:
                     T[j].append((guess+1)%256)
         return T
-    
-    def Tbox(self,i, d):
-        if i in d:
-            return [d[i]]
-        else:
-            return self.t[i]
 
     def getallconstraints(self, t0):
+        """
+        extract all constraints possible when T(0)=t0
+        """
         for i in range(1,256):
             self.getconstraints(i, t0)
     
     def getconstraints(self, j, t0):
+        """
+        get all constraints related to the message used to get T(j)
+        """
         n = self.c.blocksize
         P = [ (1- t0) % 256 for i in range(n)]
         k = (((n-1)^j) - (n-2)) % 256
@@ -77,37 +86,45 @@ class Decrypter:
         tjm = (C[0]+t0) % 256
         z=[0,tjm]
         for i in range(1, n-1):
+            # set the value for each known output of T
             self.known[z[i] ^ i] = (Pp[i-1]-C[i]) % 256
             print "affect: ", self.c.Tbox(z[i]^i), self.known[z[i]^i]
             z.append((z[i]+ Pp[i-1])%256)
-        
+            
+        # add the constraint on T(j) and T(zi^(n-1))
         self.constraints.append((C[-1], tjm, j, z[-1] ^ (n-1)))
     
     def solveconstraints(self):
+        """
+        check all constraints to see if we can deduce a T output value
+        """
         compteur = 0
         for (c, tj, j, z) in self.constraints:
             if j in self.known:
+                # if T(j) is known, we can affect the value for T(zn-1^(n-1))
                 if not z in self.known:
                     compteur+=1
                 self.known[z] = (self.known[j] - c) %256
                 print "affect:", self.known[z], self.c.Tbox(z)
             else:
                 if z in self.known:
+                    # if T(zn-1^(n-1)) is known, we can affect the value for T(j)
                     if not j in self.known:
                         compteur+=1
                     self.known[j] = (c + self.known[z]) % 256
                     print "affect: ",j, tj, self.known[j], self.c.Tbox(j)
                 else:
+                    # if one of the value if knwon (because the cave table invalidate one of the option) we can deduce the other value
                     posj = [tj, tj+1]
                     posz = [(tj-c)%256 , (tj+1 -c )%256]
                     posj = [k for k in posj if (k-j) %256 in cavetable]
                     posz = [k for k in posz if (k-z) %256 in cavetable]
-                    #if len(posj)==1:
-                     #   self.known[j] = posj[0]
-                     #   print "affect:", self.known[j], self.c.Tbox(j)
-                    #if len(posz)==1:
-                      #  self.known[z] = posz[0]
-                      #  print "affect:", self.known[z], self.c.Tbox(z)
+                    if len(posj)==1:
+                        self.known[j] = posj[0]
+                        print "affect:", self.known[j], self.c.Tbox(j)
+                    if len(posz)==1:
+                        self.known[z] = posz[0]
+                        print "affect:", self.known[z], self.c.Tbox(z)
         
         return compteur
                     
@@ -115,7 +132,7 @@ class Decrypter:
 if __name__ == '__main__':
     d = Decrypter()
     d.setCrypter(CMEA())
-    d.c.blocksize = 4
+    d.c.blocksize = 3
     d.c.createRandomKey()
     possibilities= d.findTzero()
     
@@ -126,10 +143,8 @@ if __name__ == '__main__':
     print len([l for l in t if len(l)==2])
     
     d.getallconstraints(t[0][0])
-    print len(d.known)
-    print [(d.c.Tbox(i),d.known[i]) for i in d.known]
-   # for i in range(10):
-    #    d.solveconstraints()
+    for i in range(10):
+        d.solveconstraints()
     d.solveconstraints()
     print len(d.known)
     print [(d.c.Tbox(i),d.known[i]) for i in d.known]
