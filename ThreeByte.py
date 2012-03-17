@@ -5,6 +5,12 @@ from CMEA import *
 from threading import Thread
 import random
 
+p0 = [ [ True for i in range(256) ] for j in range(256) ]
+for i in range(256):
+    for j in range(256):
+        if(not ((j-i) % 256) in cavetable):
+            p0[i][j] = False
+
 def getY1Z1(x, P, C):
     return (P[0] + x) % 256, (C[0] + x) % 256
     
@@ -58,16 +64,20 @@ def checkValue(c, T0, p, P, C):
 
     
  
-def buildP(x):
-    p = [ [ True for i in range(256) ] for j in range(256) ]
+def buildP():
+    p0 = [ [ True for i in range(256) ] for j in range(256) ]
     for i in range(256):
         for j in range(256):
             if(not ((j-i) % 256) in cavetable):
-                p[i][j] = False
+                p0[i][j] = False
+    
+def copyP():
+    p = [ [ p0[i][j] for j in range(256) ] for i in range(256) ]
     return p
+    
             
 def checkT0Value(c, x, texts):
-    p = buildP(x)
+    p = copyP()
     continuer = True
     while(continuer):
        # print "iter"
