@@ -42,9 +42,8 @@ class CMEA:
         """
         adding a default key for the doctests
         """
-        self.key = [12, 65, 23 ,89 ,
-                    56, 156, 210, 69]
-        self.blocksize=2
+        self.key = [1,2,3,4,5,6,7,8]
+        self.blocksize=3
     
     def createRandomKey(self):
         r = random.Random()
