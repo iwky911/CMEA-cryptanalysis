@@ -2,6 +2,7 @@
 #-*- coding:utf-8 -*-
 
 from CMEA import *
+from threading import Thread
 import random
 
 def getY1Z1(x, P, C):
@@ -69,11 +70,15 @@ def checkT0Value(c, x, texts):
     p = buildP(x)
     continuer = True
     while(continuer):
+       # print "iter"
         continuer = False
         for (P, C) in texts:
+          #  print [ len([k for k in t if k!=0]) for t in p]
+            continuer = continuer or checkValue(c, x, p, P, C)
+        for (C,P) in texts:
             continuer = continuer or checkValue(c, x, p, P, C)
     for i in range(256):
-        print len([k for k in p[i] if k == 1])
+       # print len([k for k in p[i] if k == 1])
         if(not 1 in p[i]):
             return False
     
@@ -81,22 +86,54 @@ def checkT0Value(c, x, texts):
     
 def findT0():
     c = CMEA()
-    texts = createPlaintexts(50, c)
+    texts = createPlaintexts(80, c)
     for x in range(256):
         if(x in cavetable and checkT0Value(c, x, texts)):
-            print x
+            print x, "good!"
         else:
             print x, " not good"
     #print checkT0Value(c, c.Tbox(0), texts)
+  
+def findT0parallel():
+    c= CMEA()
+    texts = createPlaintexts(80, c)
+    n = 4
+    threadlist = []
+    for i in range(n):
+        t = range(i*n/4, (i+1)*n/4)
+        threadlist.append(Thread(t,c,texts))
+    
+    for t in threadlist:
+        t.start()
+    
+    sortie = []
+    for t in threadlist:
+        t.join()
+        sortie.extends(t.l)
     
 def createPlaintexts(n, c, size=3):
     r = random. Random()
     l = []
     c.createRandomKey()
-    print c.Tbox(0)
+    print "t0", c.Tbox(0)
     c.blocksize = size
     for i in range(n):
         P=[r.randint(0,256) for k in range(size)]
         #P = [45, 89, 23]
         l.append((P, c.crypt(P)))
     return l
+
+
+class Parallel(Thread):
+    def __init__(self, t, c, texts,group=None, target=None, name=None, args=(), kwargs={}):
+        self.c=c
+        self.t=t
+        self.texts=texts
+        self.l=[]
+    
+    def run(self):
+        for x in t:
+            if(x in cavetable and checkT0Value(self.cc, x, self.texts)):
+                l.append(x)
+                print x, " good"
+    
