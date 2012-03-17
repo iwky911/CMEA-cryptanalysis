@@ -8,7 +8,7 @@ import random
 class CVInverse:
     def __init__(self):
         self.table = {}
-        for i in cavetable:
+        for i in range(256):
             self.table[i] = []
         for i in range(256):
             self.table[cavetable[i]].append(i)
@@ -142,7 +142,7 @@ class Cryptanalysis3B:
         print "t0", c.Tbox(0)
         c.blocksize = size
         for i in range(n):
-            P=[r.randint(0,256) for k in range(size)]
+            P=[r.randint(0,255) for k in range(size)]
             #P = [45, 89, 23]
             l.append((P, c.crypt(P)))
         return l
@@ -194,38 +194,69 @@ class Cryptanalysis3B:
             for k1 in xrange(256):
                 for k2 in xrange(256):
                     tp = [self.calcp(x, k0, k1 ,k2) for (x, tx) in self.tuples]
-                    n = ((p - tp[3]) %256 for p in tp[:3])
-                    self.startmap[n]= (k0,k1,k2, tp[0])
-    
+                    n = [(p - tp[3]) %256 for p in tp[:3]]
+                    n = n[0]*256**2+n[1]*256+n[2]
+                    if not n in self.startmap:
+                        self.startmap[n]=[]
+                    self.startmap[n].append([k0,k1,k2, tp[0]])   
+
     def calcpp(self, a, ta , k4, k5 ,k6 ,k7):
         
         res = [(ta-a) %256]
         res2 = []
         for r in res:
-            res2.extend((((self.CVI.getinverse(r) -k7 )^k6)-a) %256)
+            for i in self.CVI.getinverse(r):
+                res2.append((((i -k7 )^k6)-a) %256)
         
         res = []
         for r in res2:
-            res.extend((((self.CVI.getinverse(r)-k5)^k4)-a)%256) 
-        return res
+            for i in self.CVI.getinverse(r):
+                res.append(((((i)-k5)^k4)-a)%256)
         
-    
+        res2 = []  
+        for r in res:
+            for i in self.CVI.getinverse(r):
+                res2.append(i)
+        
+        return res2
+
     def createHashTablesecond(self):
-        self.keys = []
+        self.temp = CMEA()
         for k4 in xrange(256):
+            print k4
             for k5 in xrange(256):
                 for (k6,k7) in self.possible67:
-                    tpp = [calcpp(a,ta,k4,k5,k6,k7) for (a,ta) in self.tuples]
+                    tpp = [self.calcpp(a,ta,k4,k5,k6,k7) for (a,ta) in self.tuples]
                     if [] in tpp:
                         continue
                     for (a,b,c,d) in [(a,b,c,d) for a in tpp[0] for b in tpp[1] for c in tpp[2] for d in tpp[3]]:
                         m = ((a-d)%256,(b-d)%256, (c-d)%256)
+                        m = m[0]*256**2 + m[1]*256+m[2]
                         if m in self.startmap:
-                            key = self.startmap[m][:3]
-                            key.append((a-self.startmap[3])%256)
-                            key[-1:] = [k4,k5,k6,k7]
-                            self.keys.append(key)
-        
+                            for k in self.startmap[m]:
+                                key = k[:3]
+                                key.append((a-k[3])%256)
+                                key.extend([k4,k5,k6,k7])
+                                if key[:3]==[1,2,3]:
+                                    print key
+                                if self.trialencryption(key):
+                                    print "cle trouve: ",key
+                                    return True
+    
+    def trialencryption(self, key):
+        self.temp.setkey(key)
+        good=True
+        for (P,C) in self.texts:
+            if not self.leq(P, self.temp.crypt(C)) or not self.leq(C, self.temp.crypt(P)):
+                good = False
+                if self.leq(key, self.c.key):
+                    print P, self.temp.crypt(C), C ,self.temp.crypt(P), self.leq(P, self.temp.crypt(C)), self.leq(C, self.temp.crypt(P))
+                break
+        return good
+                    
+    
+    def leq(self,a,b):
+        return a[0]==b[0] and a[1]==b[1] and a[2]==b[2]
 
 class Parallel(Thread):
     def __init__(self, t, c, texts, d):
