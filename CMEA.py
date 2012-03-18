@@ -50,7 +50,7 @@ class CMEA:
 	create a random key
 	"""
         r = random.Random()
-        self.key = [ r.randint(0,256) for i in range(8)]
+        self.key = [ r.randint(0,255) for i in range(8)]
     
     def setkey(self, k):
         self.key = k
