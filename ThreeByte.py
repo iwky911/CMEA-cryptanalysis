@@ -7,6 +7,9 @@ import random
 
 class CVInverse:
     def __init__(self):
+        """
+        inversion of the Cave Table
+        """
         self.table = {}
         for i in range(256):
             self.table[i] = []
@@ -18,7 +21,7 @@ class CVInverse:
 
 class Cryptanalysis3B:
     def __init__(self):
-        nbplaintext = 90
+        nbplaintext = 80
         self.p0 = [ [ True for i in range(256) ] for j in range(256) ]
         for i in range(256):
             for j in range(256):
@@ -35,11 +38,14 @@ class Cryptanalysis3B:
         return (P[0] + x) % 256, (C[0] + x) % 256
         
     def checkValue(self, T0, p, P, C):
+        """
+        for a given T0 possible value, and a given (P, C)
+        we eliminate all we can
+        """
         y1, z1 = self.getY1Z1(T0, P, C)
         change = False
         for guess in range(256):
             if(p[y1 ^ 1][guess]):
-            #if(guess == c.Tbox(y1 ^ 1)):
                 #T(y1 ^ 1) = guess
                 Pp1 = (P[1] + guess) % 256
                 #P'(1) == P'(n-2)
@@ -62,17 +68,6 @@ class Cryptanalysis3B:
                 Tz20 = (Ppp2 - C[2]) % 256
                 Tz21 = ((Ppp2 ^ 1) - C[2]) % 256
                 
-                """print "Pp1", Pp1
-                print "Ppp1", Ppp1
-                print "Pp0", Pp0
-                print "Pp2", Pp2
-                print "y1", y1
-                print "y2", y2
-                print "z1", z1
-                print "z2", z2
-                print "Ty20", Ty20
-                print "Ty21", Ty21"""
-                
                 if(not p[z1 ^ 1][Tz1]):
                     p[y1 ^ 1][guess] = False
                     change = True
@@ -83,6 +78,9 @@ class Cryptanalysis3B:
         return change
     
     def buildP(self):
+        """
+        we initialize the matrix p, eliminating all values not in the Cave Table
+        """
         self.p0 = [ [ True for i in range(256) ] for j in range(256) ]
         for i in range(256):
             for j in range(256):
@@ -95,13 +93,14 @@ class Cryptanalysis3B:
         
                 
     def checkT0Value(self,x):
+        """
+        check if T(0) = x is possible
+        """
         p = self.copyP()
         continuer = True
         while(continuer):
-           # print "iter"
             continuer = False
             for (P, C) in self.texts:
-              #  print [ len([k for k in t if k!=0]) for t in p]
                 continuer = continuer or self.checkValue(x, p, P, C)
             for (C, P) in self.texts:
                 continuer = continuer or self.checkValue(x, p, P, C)
@@ -112,52 +111,47 @@ class Cryptanalysis3B:
         return True
         
     def findT0(self):
+        """
+        find T(0) value by calling checkT0Value on every x in the Cave Table
+        """
+        print "finding T(0) value..."
         for x in range(256):
             if(x in cavetable and self.checkT0Value(x)):
-                print x, "good!"
+                print x, "(y)"
                 self.myt0=x
             else:
-                print x, " not good"
+                print x, "(n)"
+        print "T(0) =", self.myt0
       
-    def findT0parallel(self):
-        n = 8
-        threadlist = []
-        for i in range(n):
-            t = range(i*256/n, (i+1)*256/n)
-            threadlist.append(Parallel(t,self.c ,self.texts, self))
-        
-        for t in threadlist:
-            t.start()
-        
-        sortie = []
-        for t in threadlist:
-            t.join()
-            sortie.extend(t.l)
-        self.myt0=sortie[0]
-        
     def createPlaintexts(self, n, c, size=3):
+        """
+        create n random plaintexts (the known plaintexts)
+        """
         r = random. Random()
         l = []
-        #c.createRandomKey()
-        print "t0", c.Tbox(0)
+        print "T(0)", c.Tbox(0)
         c.blocksize = size
         for i in range(n):
             P=[r.randint(0,255) for k in range(size)]
-            #P = [45, 89, 23]
             l.append((P, c.crypt(P)))
         return l
     
     def getPossible67values(self):
+        """
+        find the possible K6, K7 values
+        """
         s = set()
         possible = []
         for k in cavetable:
             s.add(k)
+            
+        print "finding possible K6,K7 values..."
         
-        for k6 in xrange(256):
+        print "K6"
+        for k6 in xrange(128):
+            print k6
             for k7 in xrange(256):
                 exit=False
-                if k7 ==0:
-                    print k6
                     
                 broke=False
                 for i in range(256):
@@ -166,6 +160,7 @@ class Cryptanalysis3B:
                         j = (i+ cavetable[(((ctv+i)^k6)+k7)%256])%256
                         if(self.p[i][j]):
                             jfound=True
+                            break
                         
                     if not jfound:
                         broke = True
@@ -175,8 +170,12 @@ class Cryptanalysis3B:
                     possible.append((k6,k7))
             
         self.possible67 = possible
+        print "K6, K7", len(self.possible67), "possible values"
     
     def get4tuples(self):
+        """
+        find 4 (a, T(a))
+        """
         sortie = []
         for i in range(256):
             t = [k for k in range(256) if self.p[i][k]==True]
@@ -188,11 +187,17 @@ class Cryptanalysis3B:
         return ((cavetable[((x^k0)+k1) %256] +x)^k2) %256
     
     def createHashTableprime(self):
+        """
+        builds the hashmap
+        """
+        
+        print "building hashmap..."
         self.startmap = {}
-        for k0 in xrange(256):
+        print "K0"
+        for k0 in xrange(128):
             print k0
             for k1 in xrange(256):
-                for k2 in xrange(256):
+                for k2 in xrange(128):
                     tp = [self.calcp(x, k0, k1 ,k2) for (x, tx) in self.tuples]
                     n = [(p - tp[3]) %256 for p in tp[:3]]
                     n = n[0]*256**2+n[1]*256+n[2]
@@ -221,8 +226,14 @@ class Cryptanalysis3B:
         return res2
 
     def createHashTablesecond(self):
+        """
+        eliminate as many keys as possible, brute force the remaining ones by calling tryencryption()
+        """
+        print "Testing..."
+        nbTried = 0
         self.temp = CMEA()
-        for k4 in xrange(256):
+        print "K4"
+        for k4 in xrange(128):
             print k4
             for k5 in xrange(256):
                 for (k6,k7) in self.possible67:
@@ -234,23 +245,46 @@ class Cryptanalysis3B:
                         m = m[0]*256**2 + m[1]*256+m[2]
                         if m in self.startmap:
                             for k in self.startmap[m]:
+                                nbTried = nbTried + 1
                                 key = k[:3]
                                 key.append((a-k[3])%256)
                                 key.extend([k4,k5,k6,k7])
-                                if key[:3]==[1,2,3]:
-                                    print key
                                 if self.trialencryption(key):
-                                    print "cle trouve: ",key
+                                    print "key found: ",key
+                                    print "this key may not be the exact same one, but it is equivalent..."
+                                    print "keys tried: ", nbTried
                                     return True
     
     def trialencryption(self, key):
+        """
+        brute force on the remaining keys
+        """
         self.temp.setkey(key)
         good=True
         for (P,C) in self.texts:
-            if not P==self.temp.crypt(C) or not C == self.temp.crypt(P)):
+            if (not P==self.temp.crypt(C) or not C == self.temp.crypt(P)):
                 good = False
                 break
         return good
+        
+    #we begun to parallelized but did not go too far...
+
+    def findT0parallel(self):
+        n = 8
+        threadlist = []
+        for i in range(n):
+            t = range(i*256/n, (i+1)*256/n)
+            threadlist.append(Parallel(t,self.c ,self.texts, self))
+        
+        for t in threadlist:
+            t.start()
+        
+        sortie = []
+        for t in threadlist:
+            t.join()
+            sortie.extend(t.l)
+        self.myt0=sortie[0]
+        
                     
 
 class Parallel(Thread):
